@@ -90,6 +90,22 @@ bool operate(const std::string& expression, std::vector<float>& numbers, const O
 		*(numbers.rbegin() + 1) /= *(numbers.rbegin());
 		numbers.pop_back();
 		break;
+	case Operation::power:
+		{
+			auto& expr1 = *(numbers.rbegin() + 1);
+			auto& expr2 = *(numbers.rbegin());
+			expr1 = pow(expr1, expr2);
+			numbers.pop_back();
+		}
+		break;
+	case Operation::square_root:
+		if(*(numbers.rbegin()) < 0)
+		{
+			std::cerr << "error: " << "can not be negative sign in square root" << '\n';
+			return false;
+		}
+		*numbers.rbegin() = sqrt(*numbers.rbegin());
+		break;
 	default:
 		break;
 	}

@@ -1,10 +1,11 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <string>
 
-enum class Operation
+enum class BasicOperation
 {
 	none,
 	plus,
@@ -17,36 +18,78 @@ enum class Operation
 	square_root
 };
 
-const std::map<char, Operation> TOKEN_OPERATORS = {
-	{ '+', Operation::plus },
-	{ '-', Operation::minus },
-	{ '*', Operation::multiply },
-	{ '/', Operation::divide },
-	{ '(', Operation::col_open },
-	{ ')', Operation::col_close },
-	{ '^', Operation::power },
-	{ 'r', Operation::square_root }
+enum class TrigonometryOperation
+{
+	sin,
+	cos,
+	tan,
+	cot,
+	arcsin,
+	arccos,
+	arctan,
+	arccot
 };
+
+enum class LogarithmOperation
+{
+	log,
+	ln
+};
+
+const std::map<char, BasicOperation> TOKEN_BASIC_OPERATORS = {
+	{ '+', BasicOperation::plus },
+	{ '-', BasicOperation::minus },
+	{ '*', BasicOperation::multiply },
+	{ '/', BasicOperation::divide },
+	{ '(', BasicOperation::col_open },
+	{ ')', BasicOperation::col_close },
+	{ '^', BasicOperation::power },
+	{ 'r', BasicOperation::square_root }
+};
+
+const std::map<std::string, TrigonometryOperation> TOKEN_TRIGONOMETRY_OPERATORS = {
+	{ "sin", TrigonometryOperation::sin },
+	{ "cos", TrigonometryOperation::cos },
+	{ "tan", TrigonometryOperation::tan },
+	{ "cot", TrigonometryOperation::cot },
+	{ "arcsin", TrigonometryOperation::arcsin },
+	{ "arcsin", TrigonometryOperation::arccos },
+	{ "arcsin", TrigonometryOperation::arctan },
+	{ "arcsin", TrigonometryOperation::arccot }
+};
+
+const std::map<std::string, LogarithmOperation> TOKEN_LOGARITHM_OPERATORS = {
+	{ "log", LogarithmOperation::log },
+	{ "ln", LogarithmOperation::ln },
+};
+
+const std::map<std::string, float> TOKEN_CONSTANT_NUMBERS = {
+	{ "pi", M_PI },
+	{ "eul", M_E },
+	{ "gld", 1.618033988749 }
+};
+
+//const std::map<std::string, >
 
 constexpr bool is_number(const char ch)
 {
 	return ('0' <= ch) && (ch <= '9');
 }
 
-void output_operation(const Operation oper)
+void output_operation(const BasicOperation oper)
 {
 	switch (oper)
 	{
-	case Operation::plus:
+	case BasicOperation::plus:
 		std::clog << "log: " << "+\n";
 		break;
-	case Operation::minus:
+	case BasicOperation::minus:
 		std::clog << "log: " << "-\n";
 		break;
-	case Operation::multiply:
+	case BasicOperation::multiply:
 		std::clog << "log: " << "*\n";
 		break;
-	case Operation::divide:
+	case BasicOperation::divide:
 		std::clog << "log: " << "/\n";
 		break;
 	default:
@@ -63,25 +106,25 @@ void output_numbers(const std::vector<float>& numbers)
 	}
 }
 
-bool operate(const std::string& expression, std::vector<float>& numbers, const Operation oper, char previous_char)
+bool operate(const std::string& expression, std::vector<float>& numbers, const BasicOperation oper, char previous_char)
 {
 	//output_operation(oper);
 
 	switch (oper)
 	{
-	case Operation::plus:
+	case BasicOperation::plus:
 		numbers.push_back(0);
 		break;
-	case Operation::minus:
+	case BasicOperation::minus:
 		*numbers.rbegin() *= -1;
 		if(previous_char != *expression.begin())
 			numbers.push_back(0);
 		break;
-	case Operation::multiply:
+	case BasicOperation::multiply:
 		*(numbers.rbegin() + 1) *= *(numbers.rbegin());
 		numbers.pop_back();
 		break;
-	case Operation::divide:
+	case BasicOperation::divide:
 		if(*(numbers.rbegin()) == 0)
 		{
 			std::cerr << "error: " << "can not divide by 0" << '\n';
@@ -90,7 +133,7 @@ bool operate(const std::string& expression, std::vector<float>& numbers, const O
 		*(numbers.rbegin() + 1) /= *(numbers.rbegin());
 		numbers.pop_back();
 		break;
-	case Operation::power:
+	case BasicOperation::power:
 		{
 			auto& expr1 = *(numbers.rbegin() + 1);
 			auto& expr2 = *(numbers.rbegin());
@@ -98,7 +141,7 @@ bool operate(const std::string& expression, std::vector<float>& numbers, const O
 			numbers.pop_back();
 		}
 		break;
-	case Operation::square_root:
+	case BasicOperation::square_root:
 		if(*(numbers.rbegin()) < 0)
 		{
 			std::cerr << "error: " << "can not be negative sign in square root" << '\n';
@@ -114,13 +157,16 @@ bool operate(const std::string& expression, std::vector<float>& numbers, const O
 
 void handle_push_numbers(std::vector<float>& numbers, std::string& number_string, bool need_clear = true)
 {
+	if(number_string.empty())
+		return;
+
 	try
 	{
 		numbers.push_back(std::stof(number_string));
 	}
 	catch(const std::exception& e)
 	{
-		std::cerr << "error: " << e.what() << ": the number wasn't recognized" << '\n';
+		std::cerr << "error: " << e.what() << ": the number wasn't recognized as \"" << number_string << '\"' << '\n';
 	}
 
 	if(need_clear)
@@ -132,17 +178,38 @@ float express(const std::string& expression)
 	std::vector<float> numbers;
 	std::string number_string = "0";
 
-	Operation hold = Operation::none;
+	//std::clog << "log: " << expression << '\n';
+
+	BasicOperation hold = BasicOperation::none;
+
+	int16_t col_depth = 0;
 
 	// parse expression string
 	for(const auto& ch: expression)
 	{
+		//std::clog << "log: " << "iter" << '\n';
 		if(ch == '\0')
 			break;
 
-		if(!is_number(ch) && ch != '.')
+		if(TOKEN_BASIC_OPERATORS.find(ch)->second == BasicOperation::col_close)
 		{
-			//std::clog << "log: " << "oper\n";
+			col_depth--;
+			if(!col_depth)
+			{
+				number_string.erase(number_string.begin());
+				float res = express(number_string);
+				number_string = std::to_string(res);
+			}
+			continue;
+		}
+		else if(TOKEN_BASIC_OPERATORS.find(ch)->second == BasicOperation::col_open)
+		{
+			col_depth++;
+			continue;
+		}
+		else if(!is_number(ch) && ch != '.' && !col_depth)
+		{
+			
 			handle_push_numbers(numbers, number_string);
 
 			if(!operate(expression, numbers, hold, ch))
@@ -150,7 +217,7 @@ float express(const std::string& expression)
 
 			try
 			{
-				hold = TOKEN_OPERATORS.find(ch)->second;
+				hold = TOKEN_BASIC_OPERATORS.find(ch)->second;
 			}
 			catch(const std::exception& e)
 			{
@@ -158,10 +225,7 @@ float express(const std::string& expression)
 			}
 		}
 		else
-		{
-			//std::clog << "log: " << "numb\n";
 			number_string += ch;
-		}
 	}
 
 	handle_push_numbers(numbers, number_string, false);
@@ -172,6 +236,7 @@ float express(const std::string& expression)
 	float res = 0;
 	for(auto& n : numbers)
 		res += n;
+	//std::clog << "log: " << "return: " << res << '\n';
 	return res;	
 }
 
